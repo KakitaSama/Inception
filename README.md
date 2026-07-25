@@ -1,4 +1,4 @@
-*This project has been created as part of the 42 curriculum by duukh.*
+*This project has been created as part of the 42 curriculum by sel-jazo.*
 
 # Inception
 
@@ -39,7 +39,7 @@ A Docker bridge network provides isolated container networking and service-name 
 
 ### Docker volumes versus bind mounts
 
-Docker named volumes provide persistent storage independent of a container. The project uses named volumes configured to store data under `/home/duukh/data`.
+Docker named volumes provide persistent storage independent of a container. The project uses named volumes configured to store data under `/home/sel-jazo/data`.
 
 ## Instructions
 

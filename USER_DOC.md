@@ -37,13 +37,13 @@ make logs
 The final website will be available at:
 
 ```text
-https://sel-jazo.42.fr
+https://
 ```
 
 The WordPress administration panel will be available at:
 
 ```text
-https://sel-jazo.42.fr/wp-admin
+https:///wp-admin
 ```
 
 ## Credentials

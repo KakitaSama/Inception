@@ -51,13 +51,13 @@ make down
 MariaDB data is stored under:
 
 ```text
-/home/duukh/data/mariadb
+/home/sel-jazo/data/mariadb
 ```
 
 WordPress files are stored under:
 
 ```text
-/home/duukh/data/wordpress
+/home/sel-jazo/data/wordpress
 ```
 
 The Compose services access those directories through Docker named volumes.
