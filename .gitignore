@@ -1,0 +1,10 @@
+secrets/*.txt
+
+*.swp
+*.swo
+*~
+
+*.log
+*.tmp
+
+.DS_Store
