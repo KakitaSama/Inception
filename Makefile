@@ -1,46 +1,37 @@
-COMPOSE := docker compose --env-file srcs/.env -f srcs/docker-compose.yml
-LOGIN := $(shell sed -n 's/^LOGIN=//p' srcs/.env)
+COMPOSE_FILE := srcs/docker-compose.yml
+ENV_FILE := srcs/.env
+COMPOSE := docker compose --env-file $(ENV_FILE) -f $(COMPOSE_FILE)
+LOGIN := $(shell sed -n 's/^LOGIN=//p' $(ENV_FILE))
 DATA_DIR := /home/$(LOGIN)/data
 
 all: up
 
-check-env:
-	@test -n "$(LOGIN)" || (echo "LOGIN is missing from srcs/.env"; exit 1)
+up: prepare
+	$(COMPOSE) up --detach --build
 
-dirs: check-env
+prepare:
 	mkdir -p $(DATA_DIR)/mariadb
 	mkdir -p $(DATA_DIR)/wordpress
+	$(COMPOSE) config --quiet
 
-config:
-	$(COMPOSE) config -q
-
-build: dirs config
-	$(COMPOSE) build
-
-up: dirs config
-	$(COMPOSE) up -d --build
+reset:
+	$(MAKE) fclean
+	$(MAKE) up
 
 down:
 	$(COMPOSE) down
 
-stop:
-	$(COMPOSE) stop
+logs:
+	$(COMPOSE) logs --follow
 
-start:
-	$(COMPOSE) start
-
-restart:
-	$(COMPOSE) restart
-
-ps:
+status:
 	$(COMPOSE) ps
 
-logs:
-	$(COMPOSE) logs -f
-
-clean:
-	$(COMPOSE) down --remove-orphans
+fclean:
+	$(COMPOSE) down --volumes --remove-orphans
+	sudo rm -rf $(DATA_DIR)/mariadb
+	sudo rm -rf $(DATA_DIR)/wordpress
 
 re: down up
 
-.PHONY: all check-env dirs config build up down stop start restart ps logs clean re
+.PHONY: all up prepare down logs status re

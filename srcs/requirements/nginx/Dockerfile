@@ -1,29 +1,30 @@
-FROM debian:12
+FROM debian:bookworm
+
+ARG DOMAIN_NAME
 
 RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        --no-install-recommends \
+    && apt-get install --yes --no-install-recommends \
         nginx \
         openssl \
-        ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /etc/nginx/ssl
 
-COPY conf/nginx.conf.template \
-    /etc/nginx/templates/nginx.conf.template
+COPY conf/default /etc/nginx/sites-available/default
 
-COPY tools/entrypoint.sh \
-    /usr/local/bin/nginx-entrypoint
-
-RUN rm -f /etc/nginx/sites-enabled/default \
-    && mkdir -p \
-        /etc/nginx/templates \
-        /etc/nginx/ssl \
-        /run/nginx \
-        /var/www/html \
-    && chmod 755 /usr/local/bin/nginx-entrypoint
+RUN sed -i \
+        "s/__DOMAIN_NAME__/${DOMAIN_NAME}/g" \
+        /etc/nginx/sites-available/default \
+    && openssl req \
+        -x509 \
+        -nodes \
+        -newkey rsa:2048 \
+        -sha256 \
+        -days 365 \
+        -keyout /etc/nginx/ssl/inception.key \
+        -out /etc/nginx/ssl/inception.crt \
+        -subj "/C=MA/O=42/CN=${DOMAIN_NAME}" \
+        -addext "subjectAltName=DNS:${DOMAIN_NAME}"
 
 EXPOSE 443
-
-ENTRYPOINT ["/usr/local/bin/nginx-entrypoint"]
 
 CMD ["nginx", "-g", "daemon off;"]

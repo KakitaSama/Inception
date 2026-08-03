@@ -1,64 +1,63 @@
-*This project has been created as part of the 42 curriculum by sel-jazo.*
+# Inception — readable mandatory version
 
-# Inception
+This version keeps the small architecture of the minimal project, but avoids compressed code.
+Commands, YAML values, and configuration directives are written on separate lines so each part can be explained during evaluation.
 
-## Description
+## Architecture
 
-Inception is a system-administration project that builds a small web infrastructure inside a virtual machine using Docker Compose.
+- NGINX is the only service published to the host, on port 443.
+- NGINX forwards PHP requests to WordPress through FastCGI on port 9000.
+- WordPress connects to MariaDB on port 3306.
+- WordPress and MariaDB data are stored under `/home/<login>/data`.
+- Passwords are mounted as Docker secrets under `/run/secrets`.
 
-The mandatory stack contains three custom services:
+## Create the secrets
 
-- NGINX as the only public entry point, using HTTPS on port 443.
-- WordPress with PHP-FPM, without NGINX.
-- MariaDB, without NGINX.
+```sh
+mkdir -p secrets
 
-The project uses one Docker bridge network and two named volumes for persistent MariaDB and WordPress data.
+openssl rand -hex 24 > secrets/db_root_password.txt
+openssl rand -hex 24 > secrets/db_password.txt
+openssl rand -hex 24 > secrets/wp_admin_password.txt
+openssl rand -hex 24 > secrets/wp_user_password.txt
 
-## Main design choices
+chmod 600 secrets/*.txt
+```
 
-- Debian 12 is used as the penultimate stable Debian base.
-- Each service has its own Dockerfile and container.
-- Only NGINX publishes a host port.
-- WordPress connects to MariaDB using the service name `mariadb`.
-- NGINX connects to PHP-FPM using the service name `wordpress`.
-- Confidential values are supplied through Docker Compose secrets.
+## Start the project
 
-## Technology comparisons
-
-### Virtual machines versus Docker
-
-A virtual machine virtualizes a complete machine and runs its own kernel. Docker containers isolate processes while sharing the host kernel.
-
-### Secrets versus environment variables
-
-Environment variables are convenient for non-sensitive configuration. Secrets are mounted only into services that need them and are used here for passwords.
-
-### Docker network versus host network
-
-A Docker bridge network provides isolated container networking and service-name resolution. Host networking removes normal network isolation and is not used.
-
-### Docker volumes versus bind mounts
-
-Docker named volumes provide persistent storage independent of a container. The project uses named volumes configured to store data under `/home/sel-jazo/data`.
-
-## Instructions
-
-The project is under implementation.
-
-The final stack will be built and started with:
-
-```bash
+```sh
 make
 ```
 
-Compose configuration can currently be validated with:
+Add the following entry to `/etc/hosts`:
 
-```bash
-make config
+```text
+127.0.0.1 sel-jazo.42.fr
 ```
 
-## Resources
+Then open:
 
-Primary resources include the official Docker documentation, the Inception subject and the official peer-evaluation sheet.
+```text
+https://sel-jazo.42.fr
+```
 
-AI was used to explain concepts, organize the implementation plan, review configuration choices and propose tests. Every generated command and configuration is reviewed and tested manually before inclusion.
+The browser warns about the certificate because it is self-signed.
+
+## Useful commands
+
+```sh
+make status
+make logs
+make down
+make re
+```
+
+## Why this version is still small
+
+- It uses Compose health checking instead of a second database waiting loop in WordPress.
+- It reuses Debian's standard NGINX and PHP-FPM configuration.
+- NGINX does not require an entrypoint script.
+- Only MariaDB and WordPress need initialization scripts.
+
+The code is intentionally expanded for readability; it is not expanded with unnecessary logic.
