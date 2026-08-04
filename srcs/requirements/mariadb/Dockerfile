@@ -9,6 +9,8 @@ RUN apt-get update \
 
 COPY tools/init.sh /usr/local/bin/mariadb-init
 
+COPY conf/50-server.cnf /etc/mysql/mariadb.conf.d/50-server.cnf
+
 RUN chmod +x /usr/local/bin/mariadb-init
 
 EXPOSE 3306

@@ -1,7 +1,8 @@
-COMPOSE_FILE := srcs/docker-compose.yml
-ENV_FILE := srcs/.env
-COMPOSE := docker compose --env-file $(ENV_FILE) -f $(COMPOSE_FILE)
-LOGIN := $(shell sed -n 's/^LOGIN=//p' $(ENV_FILE))
+include srcs/.env
+
+COMPOSE_FILE = srcs/docker-compose.yml
+ENV_FILE = srcs/.env
+COMPOSE = docker compose --env-file $(ENV_FILE) -f $(COMPOSE_FILE)
 DATA_DIR := /home/$(LOGIN)/data
 
 all: up
@@ -21,12 +22,6 @@ reset:
 down:
 	$(COMPOSE) down
 
-logs:
-	$(COMPOSE) logs --follow
-
-status:
-	$(COMPOSE) ps
-
 fclean:
 	$(COMPOSE) down --volumes --remove-orphans
 	sudo rm -rf $(DATA_DIR)/mariadb
@@ -34,4 +29,4 @@ fclean:
 
 re: down up
 
-.PHONY: all up prepare down logs status re
+.PHONY: all up prepare down re fclean reset
