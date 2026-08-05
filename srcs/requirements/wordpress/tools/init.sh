@@ -7,12 +7,12 @@ DB_PASSWORD=$(cat /run/secrets/db_password)
 ADMIN_PASSWORD=$(cat /run/secrets/wp_admin_password)
 USER_PASSWORD=$(cat /run/secrets/wp_user_password)
 WP_DYNAMIC_URL="'https://' . \$_SERVER['HTTP_HOST']"
+
 cd /var/www/html
 
 if [ ! -f wp-settings.php ]; then
     cp -a /usr/src/wordpress/. .
 fi
-WP_DYNAMIC_URL="'https://' . \$_SERVER['HTTP_HOST']"
 
 wp config set WP_HOME "$WP_DYNAMIC_URL" --raw --allow-root
 wp config set WP_SITEURL "$WP_DYNAMIC_URL" --raw --allow-root
