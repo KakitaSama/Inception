@@ -2,8 +2,10 @@ server {
     listen 443 ssl;
     listen [::]:443 ssl;
 
-    server_name __DOMAIN_NAME__;
+    absolute_redirect off;
 
+    server_name __DOMAIN_NAME__;
+    
     root /var/www/html;
     index index.php index.html;
 
@@ -20,5 +22,6 @@ server {
 
         fastcgi_pass wordpress:9000;
         fastcgi_param HTTPS on;
+        fastcgi_param HTTP_HOST $http_host;
     }
 }
