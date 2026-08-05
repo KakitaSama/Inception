@@ -27,12 +27,11 @@ services:
     restart: unless-stopped
 
     healthcheck:
-      test:
-        - CMD-SHELL
-        - mariadb-admin -uroot -p"$$(cat /run/secrets/db_root_password)" ping --silent
-      interval: 2s
-      timeout: 2s
-      retries: 30
+      test: ["CMD-SHELL","mariadb-admin ping --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
 
   wordpress:
     image: wordpress:1.0
