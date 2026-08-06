@@ -10,19 +10,42 @@ The stack provides a WordPress website over HTTPS.
 
 Only NGINX is directly accessible from the host. WordPress and MariaDB communicate internally through the Docker network.
 
+> **Important**
+>
+> The repository intentionally excludes `srcs/.env` and all secret files.
+> They must be created locally before the first build.
+
 ## First-time setup
 
-### 1. Configure the domain
+### 1. Create the local `.env` file
+
+Create the following file:
+
+```text
+srcs/.env
+```
+
+It must contain the project-specific, non-password configuration expected by the Makefile and `srcs/docker-compose.yml`.
+
+The exact values depend on the learner and local machine, so they are intentionally not included in this document.
+
+Do not commit this file:
+
+```sh
+git check-ignore -v srcs/.env
+```
+
+### 2. Configure the domain
 
 Add the following line to `/etc/hosts` inside the virtual machine:
 
 ```text
-127.0.0.1 sel-jazo.42.fr
+127.0.0.1 <login>.42.fr
 ```
 
-When opening the site from another computer, use the virtual machine's IP address instead of `127.0.0.1`.
+When opening the site from another computer, use the virtual machine's reachable IP address instead of `127.0.0.1`.
 
-### 2. Create local credentials
+### 3. Create local credentials
 
 From the project root:
 
@@ -36,6 +59,14 @@ chmod 600 secrets/*.txt
 ```
 
 Do not commit these files to Git.
+
+Confirm that the local configuration and credentials are ignored:
+
+```sh
+git status
+git check-ignore -v srcs/.env
+git check-ignore -v secrets/db_password.txt
+```
 
 ## Start the project
 
@@ -52,7 +83,7 @@ The first build can take several minutes because Docker must download Debian pac
 Open:
 
 ```text
-https://sel-jazo.42.fr
+https://<login>.42.fr
 ```
 
 The TLS certificate is self-signed. A browser warning is expected; continue only when the certificate belongs to the local project domain.
@@ -62,28 +93,19 @@ The TLS certificate is self-signed. A browser warning is expected; continue only
 Open:
 
 ```text
-https://sel-jazo.42.fr/wp-admin
+https://<login>.42.fr/wp-admin
 ```
 
-The administrator username is stored in:
+Use the local WordPress account information configured for the project.
 
-```text
-srcs/.env
-```
-
-under:
-
-```text
-WP_ADMIN_USER
-```
-
-The administrator password is stored locally in:
+The WordPress account passwords are stored locally in:
 
 ```text
 secrets/wp_admin_password.txt
+secrets/wp_user_password.txt
 ```
 
-The normal WordPress username is stored in `WP_USER` inside `srcs/.env`, and its password is stored in `secrets/wp_user_password.txt`.
+The usernames are part of the local project configuration and are intentionally not reproduced in this document.
 
 ## Stop and restart
 
@@ -113,7 +135,7 @@ A complete reset deletes the WordPress website and database. Back up important d
 docker compose --env-file srcs/.env -f srcs/docker-compose.yml ps
 ```
 
-The `mariadb`, `wordpress`, and `nginx` containers should be running. MariaDB should also report a healthy status.
+The `mariadb`, `wordpress`, and `nginx` containers should be running. MariaDB may also report a healthy status if a health check is configured.
 
 View logs from every service:
 
@@ -140,13 +162,13 @@ docker compose --env-file srcs/.env -f srcs/docker-compose.yml logs mariadb
 Confirm that HTTPS works:
 
 ```sh
-curl -kI https://sel-jazo.42.fr
+curl -kI https://<login>.42.fr
 ```
 
 Confirm that HTTP port `80` is not published:
 
 ```sh
-curl -I http://sel-jazo.42.fr
+curl -I http://<login>.42.fr
 ```
 
 Confirm that only NGINX publishes a host port:
@@ -157,7 +179,10 @@ docker compose --env-file srcs/.env -f srcs/docker-compose.yml ps
 
 ## Credential management
 
-The non-confidential configuration is stored in `srcs/.env`.
+The project requires two types of local files:
+
+- `srcs/.env` for project-specific, non-password configuration.
+- files under `secrets/` for confidential passwords.
 
 The confidential files are:
 
@@ -174,17 +199,17 @@ To change a WordPress password, replace the corresponding secret file and restar
 docker compose --env-file srcs/.env -f srcs/docker-compose.yml restart wordpress
 ```
 
-The WordPress initialization script synchronizes the stored WordPress account password with the secret when the container starts.
+The WordPress initialization script synchronizes the stored WordPress account password with the mounted secret when the container starts.
 
-Changing the MariaDB passwords after the database has already been initialized requires updating the database accounts as well. Simply changing a MariaDB secret file does not automatically change an existing database password.
+Changing MariaDB passwords after the database has already been initialized requires updating the existing database accounts as well. Simply changing a MariaDB secret file does not automatically change an existing database password.
 
 ## Persistent data
 
 The project stores persistent data on the host in:
 
 ```text
-/home/sel-jazo/data/mariadb
-/home/sel-jazo/data/wordpress
+/home/<login>/data/mariadb
+/home/<login>/data/wordpress
 ```
 
 Stopping or recreating containers does not remove these files. `make fclean` and `make reset` remove them.
