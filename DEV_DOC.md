@@ -12,6 +12,11 @@ The project is managed by Docker Compose and contains three custom images:
 
 The containers share the `inception` bridge network. Docker's internal DNS resolves service names such as `mariadb` and `wordpress`.
 
+> **Local-only files**
+>
+> The repository intentionally excludes `srcs/.env` and the password files under `secrets/`.
+> These files must be created locally before building the stack.
+
 ## Repository structure
 
 ```text
@@ -23,7 +28,6 @@ The containers share the `inception` bridge network. Docker's internal DNS resol
 ├── secrets/
 │   └── .gitkeep
 └── srcs/
-    ├── .env
     ├── docker-compose.yml
     └── requirements/
         ├── mariadb/
@@ -37,6 +41,8 @@ The containers share the `inception` bridge network. Docker's internal DNS resol
             ├── Dockerfile
             └── tools/init.sh
 ```
+
+At runtime, a local `srcs/.env` file must also exist. It is intentionally not committed.
 
 ## Prerequisites
 
@@ -60,30 +66,23 @@ The Docker daemon must be running, and the current user must be allowed to use D
 
 ## Environment configuration
 
-Non-confidential configuration is stored in `srcs/.env`:
+Create `srcs/.env` locally before building the project.
 
-```env
-LOGIN=sel-jazo
-DOMAIN_NAME=sel-jazo.42.fr
-MYSQL_DATABASE=wordpress
-MYSQL_USER=wpuser
-WP_TITLE=Inception
-WP_ADMIN_USER=sel-jazo_owner
-WP_ADMIN_EMAIL=owner@example.com
-WP_USER=site_user
-WP_USER_EMAIL=user@example.com
+The file contains the project-specific, non-password values expected by:
+
+- the Makefile;
+- `srcs/docker-compose.yml`;
+- the service build arguments and runtime environment.
+
+Its exact values depend on the learner and machine and are intentionally not reproduced here.
+
+Passwords must never be placed in `.env`.
+
+Confirm that the file is ignored by Git:
+
+```sh
+git check-ignore -v srcs/.env
 ```
-
-The administrator username must not contain `admin` or `administrator` in any letter case.
-
-The Makefile includes this file and uses `LOGIN` to create:
-
-```text
-/home/sel-jazo/data/mariadb
-/home/sel-jazo/data/wordpress
-```
-
-Docker Compose also reads the same file to interpolate the service configuration.
 
 ## Secret configuration
 
@@ -98,14 +97,15 @@ openssl rand -hex 24 > secrets/wp_user_password.txt
 chmod 600 secrets/*.txt
 ```
 
-The `.gitignore` excludes `secrets/*.txt`. Confirm before committing:
+Confirm before committing:
 
 ```sh
 git status
+git check-ignore -v srcs/.env
 git check-ignore -v secrets/db_password.txt
 ```
 
-No password should appear in a Dockerfile, `docker-compose.yml`, `.env`, README, or Git history.
+No password should appear in a Dockerfile, `docker-compose.yml`, `.env`, README, documentation, or Git history.
 
 ## Build and launch
 
@@ -115,7 +115,9 @@ From the repository root:
 make
 ```
 
-The Makefile creates the host data directories and executes:
+The Makefile creates the host data directories and executes Docker Compose with the local `.env` file.
+
+Equivalent command:
 
 ```sh
 docker compose --env-file srcs/.env -f srcs/docker-compose.yml up --detach --build
@@ -143,13 +145,13 @@ Its initialization script:
 5. Uses MariaDB bootstrap mode to create the WordPress database, database user, grants, and root password.
 6. Replaces the shell process with `mariadbd` using `exec`.
 
-`50-server.cnf` makes MariaDB listen on all container interfaces so WordPress can reach it through the Docker network.
+`50-server.cnf` makes MariaDB listen on the container network so WordPress can reach it through the Docker bridge network.
 
 ### WordPress and PHP-FPM
 
-The WordPress image installs PHP CLI, PHP-FPM, the PHP MySQL extension, Curl, and CA certificates. It downloads WP-CLI and then downloads the current stable WordPress core during the image build.
+The WordPress image installs PHP CLI, PHP-FPM, the PHP MySQL extension, Curl, CA certificates, WP-CLI, and WordPress core.
 
-The PHP-FPM pool is changed from a local Unix socket to TCP port `9000`:
+The PHP-FPM pool listens on TCP port `9000`:
 
 ```ini
 listen = 9000
@@ -160,9 +162,11 @@ Its initialization script:
 1. Reads database and WordPress passwords from `/run/secrets`.
 2. Copies WordPress core files into the persistent volume when they are absent.
 3. Creates `wp-config.php` when it is absent.
-4. Installs WordPress when the database does not yet contain an installation.
-5. Synchronizes the administrator and normal-user passwords with the mounted secrets.
-6. Replaces the shell process with PHP-FPM in foreground mode.
+4. Configures the WordPress URL.
+5. Installs WordPress when the database does not yet contain an installation.
+6. Creates or updates the required WordPress users.
+7. Synchronizes their passwords with the mounted secrets.
+8. Replaces the shell process with PHP-FPM in foreground mode.
 
 ### NGINX
 
@@ -170,9 +174,9 @@ The NGINX image installs NGINX and OpenSSL.
 
 During the image build it:
 
-1. Replaces the `__DOMAIN_NAME__` placeholder in the server configuration.
+1. Configures the project domain.
 2. Generates a self-signed certificate and private key.
-3. Adds the configured domain as both the certificate common name and Subject Alternative Name.
+3. Adds the configured domain to the certificate.
 
 NGINX accepts TLS 1.2 and TLS 1.3 only and forwards PHP requests to:
 
@@ -222,15 +226,15 @@ docker volume inspect wordpress_data
 The volume configuration stores data under:
 
 ```text
-/home/sel-jazo/data/mariadb
-/home/sel-jazo/data/wordpress
+/home/<login>/data/mariadb
+/home/<login>/data/wordpress
 ```
 
 Inspect the host data:
 
 ```sh
-sudo ls -la /home/sel-jazo/data/mariadb
-sudo ls -la /home/sel-jazo/data/wordpress
+sudo ls -la /home/<login>/data/mariadb
+sudo ls -la /home/<login>/data/wordpress
 ```
 
 `make down` removes containers and the Compose network but preserves the named volumes and host data.
@@ -286,13 +290,21 @@ docker exec -it mariadb sh
 mariadb -u root -p
 ```
 
-Enter the value from `secrets/db_root_password.txt` when prompted.
+Enter the local root password from:
+
+```text
+secrets/db_root_password.txt
+```
 
 Useful SQL checks:
 
 ```sql
 SHOW DATABASES;
-USE wordpress;
+```
+
+After selecting the locally configured WordPress database:
+
+```sql
 SHOW TABLES;
 SELECT user_login FROM wp_users;
 ```
@@ -304,14 +316,14 @@ The WordPress table prefix is normally `wp_` unless it has been changed.
 Inspect the certificate:
 
 ```sh
-openssl s_client -connect sel-jazo.42.fr:443 -servername sel-jazo.42.fr </dev/null
+openssl s_client -connect <login>.42.fr:443 -servername <login>.42.fr </dev/null
 ```
 
 Test TLS 1.2 and TLS 1.3:
 
 ```sh
-openssl s_client -connect sel-jazo.42.fr:443 -tls1_2 </dev/null
-openssl s_client -connect sel-jazo.42.fr:443 -tls1_3 </dev/null
+openssl s_client -connect <login>.42.fr:443 -servername <login>.42.fr -tls1_2 </dev/null
+openssl s_client -connect <login>.42.fr:443 -servername <login>.42.fr -tls1_3 </dev/null
 ```
 
 HTTP port `80` should not be reachable because it is not published.
@@ -338,6 +350,8 @@ Before submission, verify:
 
 ```sh
 git status
+git check-ignore -v srcs/.env
+git check-ignore -v secrets/db_password.txt
 sh -n srcs/requirements/mariadb/tools/init.sh
 sh -n srcs/requirements/wordpress/tools/init.sh
 docker compose --env-file srcs/.env -f srcs/docker-compose.yml config
@@ -357,5 +371,5 @@ Also confirm:
 - the normal user can log in and comment;
 - the administrator can edit a page;
 - data remains after stopping containers and rebooting the VM;
-- no secret file is committed to Git;
-- all modified and new source files are committed before submission.
+- no secret file or `.env` file is committed to Git;
+- all source files and documentation are committed before submission.
